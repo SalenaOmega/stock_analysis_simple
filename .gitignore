@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+erp_bt_cache/
+macro_cache/
+erp_bt_monthly.csv
+erp_bt_result.md
+erp_bt_charts.png
+macro_monthly.csv
+macro_charts.png
+macro_heatmap.png
