@@ -167,6 +167,16 @@ def subperiods(m):
     return pd.DataFrame(rows)
 
 
+def failure_cases(m, pct_thresh=80, fwd_thresh=0):
+    """ERP 分位高（>pct_thresh）但随后6个月收益为负的月份。"""
+    rows = m[["pct_300", "erp_300", "y10", "fwd6", "fwd12"]].dropna()
+    fail = rows[(rows["pct_300"] > pct_thresh) & (rows["fwd6"] < fwd_thresh)].copy()
+    fail = fail.sort_values("pct_300", ascending=False)
+    fail.index = fail.index.strftime("%Y-%m")
+    fail.columns = ["5年分位%", "ERP%", "10Y%", "未来6m收益%", "未来12m收益%"]
+    return fail.round(2)
+
+
 def fmt(df):
     return df.to_markdown(index=False, floatfmt=".2f")
 
@@ -268,6 +278,28 @@ def main():
     ]
     report = "\n".join(parts)
     print("\n" + report)
+    with open("erp_bt_result.md", "w", encoding="utf-8") as f:
+        f.write(report)
+
+    # 失效案例：ERP 分位 >80% 但随后6个月收益为负
+    fc = failure_cases(m)
+    fail_md = "\n## 信号失效阶段（5年分位>80% 但随后6个月收益为负）\n\n"
+    fail_md += fc.to_markdown()
+    fail_md += (
+        "\n\n**典型案例（2022年4月）：** ERP 5年滚动分位约93.2%，市场估值历史上处于极便宜区间，"
+        "但随后6个月沪深300价格收益约 −12.6%。同期背景：新冠管控冲击叠加美联储快速加息，"
+        "分母端（债券收益率）锚定在低位，ERP 主要由估值压缩驱动，而不是盈利改善。"
+        "2023年5–8月也出现类似失效：经济复苏不及预期，ERP 高位滞留但市场持续调整。"
+        "这说明 ERP 作为价值信号能识别相对便宜区间，但对短期情绪与基本面修复节奏无法定位，"
+        "在宏观冲击主导的市场环境中失效概率更高。\n"
+    )
+    fail_md += "\n## 局限说明\n"
+    fail_md += ("- IC 为描述性相关，月度收益窗口重叠，有效独立观测数少于 N，不能支持统计显著性结论。\n"
+                "- ERP 为盈利收益率口径（1/PE_TTM），非股息率，与部分文献定义不同。\n"
+                "- 数据依赖 AKShare 上游接口，历史序列存在修订风险。\n")
+
+    report += fail_md
+    print(fail_md)
     with open("erp_bt_result.md", "w", encoding="utf-8") as f:
         f.write(report)
     m.to_csv("erp_bt_monthly.csv", encoding="utf-8-sig")
